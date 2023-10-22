@@ -36,14 +36,16 @@ subplot(2,2,4); imshow(im(:,:,:,25)); title('Image 25');
 
 im_1 = double(im(:,:,:,1));
 figure;
-[germ,S] = SLIC(im_1,100);
-m = 0;
+K = 200;
+[germ,S] = SLIC(im_1,K);
+K = size(germ,1);
+m = 10;
 % coté du voisinage d'un germe
-n = 3;
+n = 5;
 
 matrix_label = - ones(size(im_1(:,:,1)));
 matrix_distance = zeros(size(im_1(:,:,1)));
-matrix_distance(:,:) = Inf;
+matrix_distance(:,:) = realmax;
 current_distance = zeros(size(matrix_distance));
 
 [h,w] = size(current_distance);
@@ -52,16 +54,64 @@ matrix_condition = zeros(size(matrix_label));
 
 n_step = 0;
 
+im_vector = zeros(w*h,5);
+
+l=1;
+
+for i=1:m
+    for j=1:n
+        im_vector(l,:)=[im_1(i,j,1) im_1(i,j,2) im_1(i,j,3) i j];
+        l=l+1;
+    end
+end
+
+im_vector(:,4)=im_vector(:,4)*(m/S);
+im_vector(:,5)=im_vector(:,5)*(m/S);
+
+
 %% Test
-[L1,Numlabel] = superpixels3(im_1,120);
+[L1,Numlabel] = superpixels3(im_1,20);
 
 %% Algorithme
 
 %% Affinement de la grille
-[Gx,Gy] = imgradient(rgb2gray(im_1));
-    
-grad = (double(Gx)+double(Gy))/2;
 
+% [Gx,Gy] = imgradient(rgb2gray(im(:,:,:,1)));
+% grad = (double(Gx)+double(Gy))/2;
+% for i = 1:size(germ,1)
+%     x_germ = germ(i,1);
+%     y_germ = germ(i,2);
+%     x_min = max(1,x_germ-1);
+%     x_max = min(h,x_germ+1);
+%     y_min = max(1,y_germ-1);
+%     y_max = min(w,y_germ+1);
+%     % Voisinage n du germe
+% 
+%     voisinage = grad(x_min:x_max,y_min:y_max);
+%     % Valeur minimale dans le voisinage
+% 
+%     [valeur,indice]=min(voisinage(:));
+%     [indX,indY] = ind2sub(size(voisinage),indice);
+%     x_newgerm = x_min+(indX-1);
+%     y_newgerm = y_min+(indY-1);
+%     % Mise à jour du germe
+% 
+%     germ(i,1) = x_newgerm;
+%     germ(i,2) = y_newgerm;
+%     germ(i,3) = im_1(x_newgerm,y_newgerm,1);
+%     germ(i,4) = im_1(x_newgerm,y_newgerm,2);
+%     germ(i,5) = im_1(x_newgerm,y_newgerm,3);
+%     
+%end
+for k=1:size(germ,1)
+    
+
+end
+
+% 3 cannaux, somme des x, somme des y, nb d'éléments
+mat_maj_germ = zeros(size(germ,1),3);
+% 2 canneaux, xf et yf
+mat_maj_final = zeros(size(germ,1),2);
 
 %% Partie itérative 
 
@@ -70,14 +120,36 @@ while (n_step<1)
         x_germ = germ(i,1);
         y_germ = germ(i,2);
        
-        current_distance(max(1,x_germ-S):min(h,x_germ+S),max(1,y_germ-S):min(w,y_germ+S)) = sqrt((double(im_1(max(1,x_germ-S):min(h,x_germ+S),max(1,y_germ-S):min(w,y_germ+S),3))-double(germ(i,3))).^2 + (double(im(max(1,x_germ-S):min(h,x_germ+S),max(1,y_germ-S):min(w,y_germ+S),4))-double(germ(i,4))).^2 + (double(im(max(1,x_germ-S):min(h,x_germ+S),max(1,y_germ-S):min(h,y_germ+S),5))-double(germ(i,5))).^2)  + (m/S)*sqrt(double(im_1(max(1,x_germ-S):min(w,x_germ+S),max(1,y_germ-S):min(w,y_germ+S),1).^2)  + double(im_1(max(1,x_germ-S):min(h,x_germ+S),max(1,y_germ-S):min(w,y_germ+S),2)).^2);        
+        x_min = max(1,x_germ-S);
+        x_max = min(h,x_germ+S);
+        y_min = max(1,y_germ-S);
+        y_max = min(w,y_germ+S);
+       
+        current_distance(x_min:x_max,y_min:y_max) = sqrt((double(im_1(x_min:x_max,y_min:y_max,1))-double(germ(i,3))).^2 + (double(im(x_min:x_max,y_min:y_max,2))-double(germ(i,4))).^2 + (double(im(x_min:x_max,y_min:y_max,3))-double(germ(i,5))).^2) + (m/S)*sqrt((double(im_1(x_min:x_max,y_min:y_max,1))-x_germ).^2)  + (double(im_1(x_min:x_max,y_min:y_max,2)-y_germ).^2);        
         
-        matrix_condition(max(1,x_germ-S):min(h,x_germ+S),max(1,y_germ-S):min(w,y_germ+S)) = current_distance(max(1,x_germ-S):min(h,x_germ+S),max(1,y_germ-S):min(h,y_germ+S)) < matrix_distance(max(1,x_germ-S):min(h,x_germ+S),max(1,y_germ-S):min(h,y_germ+S));
+        matrix_condition(x_min:x_max,y_min:y_max) = current_distance(x_min:x_max,y_min:y_max) < matrix_distance(x_min:x_max,y_min:y_max);
 
-        matrix_distance(max(1,x_germ-S):min(h,x_germ+S),max(1,y_germ-S):min(h,y_germ+S)) =  matrix_distance(max(1,x_germ-S):min(h,x_germ+S),max(1,y_germ-S):min(h,y_germ+S)).*abs(matrix_condition(max(1,x_germ-S):min(h,x_germ+S),max(1,y_germ-S):min(h,y_germ+S))-1) + matrix_condition(max(1,x_germ-S):min(h,x_germ+S),max(1,y_germ-S):min(h,y_germ+S)).*current_distance(max(1,x_germ-S):min(h,x_germ+S),max(1,y_germ-S):min(h,y_germ+S));
-        matrix_label(max(1,x_germ-S):min(h,x_germ+S),max(1,y_germ-S):min(h,y_germ+S)) = matrix_condition(max(1,x_germ-S):min(h,x_germ+S),max(1,y_germ-S):min(h,y_germ+S))*i;
-
+        matrix_distance(x_min:x_max,y_min:y_max) = matrix_distance(x_min:x_max,y_min:y_max).*abs(matrix_condition(x_min:x_max,y_min:y_max)-1) + matrix_condition(x_min:x_max,y_min:y_max).*current_distance(x_min:x_max,y_min:y_max);
+        matrix_label(x_min:x_max,y_min:y_max) = matrix_label(x_min:x_max,y_min:y_max).*abs(matrix_condition(x_min:x_max,y_min:y_max)-1) + matrix_condition(x_min:x_max,y_min:y_max)*i;
+        
     end
+    
+    % Mise à jour des centres
+    for i=1:h
+        for j=1:w
+            mat_maj_germ(matrix_label(i,j),1) = mat_maj_germ(matrix_label(i,j),1) + i;
+            mat_maj_germ(matrix_label(i,j),2) = mat_maj_germ(matrix_label(i,j),2) + j;
+            mat_maj_germ(matrix_label(i,j),3) = mat_maj_germ(matrix_label(i,j),3) + 1;
+        end
+    end
+    
+    mat_maj_final(:,:) = ceil(mat_maj_germ(:,1:2)./mat_maj_germ(:,3));
+    
+    for i=1:K
+        germ(i,1:2) = [mat_maj_final(i,1:2) im_1-]; 
+    end
+    
+    
     fprintf("n = %d \n",n_step)
     n_step = n_step + 1;
 end
@@ -86,6 +158,46 @@ end
 matrix_segmentation = classe2segmentation(matrix_label);
 
 imshow(matrix_segmentation);
+
+[idx, C] = kmeans(im_vector,K,'Start',germ,'MaxIter',1);
+C(:,4)= C(:,4)*(S/m);
+C(:,5)=C(:,5)*(S/m);
+% Adapation 
+[nb_lignes, nb_colonnes, ~]=size(im_1);
+idx=(reshape(idx,size(im_1,2),size(im_1,1)))';
+
+
+
+
+
+
+
+
+
+
+%% Binarisation
+
+% Initialisation
+mat_binarisation = zeros(size(im_1(:,:,1)));
+mat_cluster = zeros(size(germ,1));
+
+mat_cluster = germ(:,3) > 170;
+
+germ(:,6) = mat_cluster;
+
+for i=1:h
+    for j=1:w
+        mat_binarisation(i,j) = germ(matrix_label(i,j),6);
+    end
+end
+
+figure;
+imshow(mat_binarisation)
+
+
+
+
+
 
 
 
